@@ -2,6 +2,7 @@ import psutil
 import os
 import platform
 import json
+import sys
 
 # Windows only MTP shell access
 try:
@@ -9,7 +10,6 @@ try:
 except ImportError:
     win32com = None
     
-
 # Define image extensions
 image_extensions = (".jpg", ".jpeg", ".png", ".heic", ".gif", ".bmp")
 
@@ -103,6 +103,23 @@ def placeholder_future_mtp_support():
     print("\n MTP scanning (real-time phone browsing) is not supported yet.")
     print("Future support will integrate pyMTP on Linux and WPD COM API on Windows.")
     
+def main():
+    if len(sys.argv) > 1:
+        # Use the first argument as the folder path
+        folder_path = sys.argv[1]
+        if os.path.isdir(folder_path):
+            print(f"Using folder path from command line: {folder_path}")
+            # Continue with your scan logic using folder_path
+        else:
+            print("Error: The provided path is not a directory.")
+            sys.exit(1)
+    else:
+        # Fallback to asking user for input if no argument given
+        folder_path = input("Enter folder path to scan: ").strip()
+        if not os.path.isdir(folder_path):
+            print("Invalid path. Exiting.")
+            sys.exit(1)
+
 
 if __name__ == "__main__":
     print("Starting Photo Scanner...")
