@@ -1,141 +1,129 @@
-import psutil
 import os
-import platform
 import json
-import sys
+import time
+import datetime
 
-# Windows only MTP shell access
-try:
-    import win32com.client
-except ImportError:
-    win32com = None
-    
-# Define image extensions
 image_extensions = (".jpg", ".jpeg", ".png", ".heic", ".gif", ".bmp")
+video_extensions = (".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm", ".3gp", ".mpeg")
+output_json = "photo_folder.json"
 
-# List of common media folders relative to device root
-common_media_folders = [
-    "DCIM",
-    os.path.join("DCIM", "Camera"),
-    "Pictures",
-    "Download",
-    os.path.join("WhatsApp", "Media", "WhatsApp Images"),
-    os.path.join("Telegram", "Telegram Images"),
-    "Snapchat",
-    "WhatsApp/Media/WhatsApp Images",
-    "Instagram",
-    "Facebook",
-    "Screenshots"
+# Folders to skip during scanning
+skip_folders = [
+    "TECHTOOLS", ".Applications", ".Trash", "com.apple", ".spotlight-V100", ".fseventsd",
+    ".documentRevisions-V100", "$Recyle.Bin", "System Volume Information", "Windows",
+    "Program Files", "Program Files (x86)", "AppData", "Temp", "ProgramData"
 ]
 
-def get_mounted_drives():
-    system = platform.system()
-    drives = []
-    
-    if system =="Windows":
-        drives = [part.mountpoint for part in psutil.disk_partitions()]
-    elif system in ("Linux", "Darwin"):
-        # COmmon mount points on Unix system
-        common_mounts = ["/media", "/mnt", "/Volumes"]
-        for mount_root in common_mounts:
-            if os.path.isdir(mount_root):
-                for entry in os.listdir(mount_root):
-                    mount_path = os.path.join(mount_root, entry)
-                    if os.path.ismount(mount_path):
-                        drives.append(mount_path)
-                        
-    return drives
+# Extensions considered "Junk"
+junk_extensions = (
+    ".ds_store", ".tmp", ".log", ".ini", ".plist", ".db", ".thumbnails",
+    ".lnk", ".exe", ".dll", ".sys", ".bak", ".swp", ".crdownload", ".part",
+    ".icloud", ".trashinfo", ".desktop.ini", ".thumbs.db"
+)
 
-def prompt_manual_path():
-    manual_paths = []
-    while True:
-        manual_path = input("\nEnter path to phone's folder (or press Enter to stop): ").strip()
-        if not manual_path:
-            break
-        if os.path.isdir(manual_path):
-            print(f"Added manual device path: {manual_path}")
-            manual_paths.append(manual_path)
-        else:
-            print("Invalid path. Please try again.")
-    return manual_paths
+def should_skip_dir(dir_path):
+    for skip in skip_folders:
+        if skip.lower() in dir_path.lower():
+            return True
+    return False
 
-def list_mtp_devices_windows():
-    """List 'This PC' devices for Windows using Explorer Shell (view only)."""
-    if platform.system() != "Windows" or win32com is None:
-        return
+def is_junk_file(file_name):
+    return file_name.lower().endswith(junk_extensions)
+
+def scan_media(root_path):
+    found_images = []
+    found_videos = []
     
-    print("\n Scanning Windows Explorer Shell for MTP Devices...")
-    shell = win32com.client.Dispatch("Shell.Application")
-    namespace = shell.NameSpace("shell:::{20D04FE0-3AEA-1069-A2D8-08002B30309D}") # This PC
-    
-    for item in namespace.Items():
-        print(f"Found device: {item.Name}")
-        
-        try:
-            subfolder = item.GetFolder
-            for subitem in subfolder.Items():
-                print(f"Folder: {subitem.Path}")
-        except:
+    for root, dirs, files in os.walk(root_path):
+        # Skip directories containing any of the keywords
+        if should_skip_dir(root):
+            print(f"Skipping Folder: {root}")
+            dirs[:] = [] 
             continue
         
-
-def find_media_folders(drives):
-    media_paths = []
-    for drive in drives:
-        for folder in common_media_folders:
-            path = os.path.join(drive, folder)
-            if os.path.isdir(path):
-                print(f"Media folder found: {path}")
-                media_paths.append(path)
-    return media_paths
-
-def scan_media_files(media_paths):
-    found_media = []
-    for media_path in media_paths:
-        for root, _, files in os.walk(media_path):
-            for file in files:
-                if file.lower().endswith(image_extensions):
-                    full_path = os.path.join(root, file)
-                    found_media.append(full_path)
-    return found_media
-
-def placeholder_future_mtp_support():
-    print("\n MTP scanning (real-time phone browsing) is not supported yet.")
-    print("Future support will integrate pyMTP on Linux and WPD COM API on Windows.")
+        for file in files:
+            if is_junk_file(file):
+                continue # skip junk files
+            
+            full_path = os.path.join(root, file)
+            lower_file = file.lower()
+            if lower_file.endswith(image_extensions):
+                found_images.append(full_path)
+            elif lower_file.endswith(video_extensions):
+                found_videos.append(full_path)
     
-def main():
-    if len(sys.argv) > 1:
-        # Use the first argument as the folder path
-        folder_path = sys.argv[1]
-        if os.path.isdir(folder_path):
-            print(f"Using folder path from command line: {folder_path}")
-            # Continue with your scan logic using folder_path
-        else:
-            print("Error: The provided path is not a directory.")
-            sys.exit(1)
+    return found_images, found_videos
+
+def load_existing_media(json_path):
+    if not os.path.exists(json_path):
+        return {"images": [], "videos": []}
+    try:
+        with open(json_path, "r") as f:
+            data = json.load(f)
+            return {
+                "images": data.get("images", []),
+                "videos": data.get("videos", [])
+            }
+    except Exception:
+        return {"images": [], "videos": []}
+    
+def merge_media_lists(old_list, new_list):
+    combined = set(old_list)
+    combined.update(new_list)
+    return sorted(combined)
+
+def log_scan(path, images, videos, elapsed):
+    log_data = {
+        "scan_path": path,
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "num_images": len(images),
+        "num_videos": len(videos),
+        "time_seconds": round(elapsed, 2)
+    }
+    
+    history_file = "scan_history.json"
+    if os.path.exists(history_file):
+        with open(history_file, "r") as f:
+            history = json.load(f)
     else:
-        # Fallback to asking user for input if no argument given
-        folder_path = input("Enter folder path to scan: ").strip()
-        if not os.path.isdir(folder_path):
-            print("Invalid path. Exiting.")
-            sys.exit(1)
-
-
-if __name__ == "__main__":
-    print("Starting Photo Scanner...")
-    drives = get_mounted_drives()
-    # Prompt user for a manual phone mount path
-    use_manual = input("\n Do you want to manually add a phone or media path? (y/n): ").strip().lower()
-    if use_manual == "y":
-        drives += prompt_manual_path()
-    # Optional: list MTP shell-visible devices (Win only)
-    list_mtp_devices_windows()
-    media_folders = find_media_folders(drives)
-    media_files = scan_media_files(media_folders)
-    print(f"Found {len(media_files)} media files.")
-    with open("photo_folders.json", "w") as f:
-        json.dump(media_folders, f, indent=2)
-    print(f"Saved {len(media_folders)} media folder paths to photo_folders.json")
+        history = []
     
-    # Inform about future suport
-    placeholder_future_mtp_support()
+    history.append(log_data)
+    
+    with open(history_file, "w") as f:
+        json.dump(history, f, indent=2)
+
+def run_photo_scan(scan_path, log):
+    if not os.path.isdir(scan_path):
+        log("Invalid directory path. Please try again.")
+        return
+
+    start_time = time.time()
+    log(f"Scanning path: {scan_path} ...")
+    
+    found_images, found_videos = scan_media(scan_path)
+
+    elapsed = time.time() - start_time
+    h, rem = divmod(int(elapsed), 3600)
+    m, s = divmod(rem, 60)
+
+    log("\nScan Complete:")
+    log(f"  - Found {len(found_images)} images")
+    log(f"  - Found {len(found_videos)} videos")
+    log(f"  - Time Elapsed: {h}h:{m}m:{s}s")
+
+    existing_media = load_existing_media(output_json)
+    merged_images = merge_media_lists(existing_media["images"], found_images)
+    merged_videos = merge_media_lists(existing_media["videos"], found_videos)
+
+    with open(output_json, "w") as f:
+        json.dump({"images": merged_images, "videos": merged_videos}, f, indent=2)
+
+    log(f"\nMedia paths saved to {output_json}")
+    log_scan(scan_path, found_images, found_videos, elapsed)
+
+
+# Optional CLI fallback
+if __name__ == "__main__":
+    folder = input("Enter path to scan: ").strip()
+    run_photo_scan(folder)
