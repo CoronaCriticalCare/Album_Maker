@@ -22,7 +22,7 @@ class PhotoToolsApp(TkinterDnD.Tk):
         self.geometry("1100x750")
         self.configure(bg="lightgray")
         
-        self.logo_photo = None
+        self.logo_photos = {}
         self.dropped_paths = {}
         self.create_widgets()
         
@@ -58,17 +58,25 @@ class PhotoToolsApp(TkinterDnD.Tk):
             
             logo_path = os.path.join("assets", "logo.png")
             if os.path.exists(logo_path):
-                logo_img = Image.open(logo_path)
-                logo_img = logo_img.resize((200, 200), Image.LANCZOS)
-                self.logo_photo = ImageTk.PhotoImage(logo_img)
-                logo_label = tk.Label(logo_frame, image=self.logo_photo, bg="lightgray")
-                logo_label.pack(pady=10)
+                try:
+                    logo_img = Image.open(logo_path)
+                    logo_img = logo_img.resize((600, 300), Image.LANCZOS)
+                    photo = ImageTk.PhotoImage(logo_img)
+                
+                    self.logo_photos[tab_name] = photo # Store it so it doesn't get garbage
+                
+                    logo_label = tk.Label(logo_frame, image=photo, bg="lightgray")
+                    logo_label.pack(pady=10)
+                except Exception as e:
+                    print(f"[ERROR] Failed to load logo: {e}")
+                    logo_label = tk.Label(logo_frame, text="[Logo error]", bg="lightgray")
+                    logo_label.pack(pady=10)
             else:
                 logo_label = tk.Label(logo_frame, text="[Logo not loaded]", bg="lightgray")
                 logo_label.pack(pady=10)
         
         # --- Right Panel for Tool Controls ---
-        self.control_panel = tk.Frame(self, width=200, bg="white", relief="sunken", borderwidth=1)
+        self.control_panel = tk.Frame(self, width=600, bg="white", relief="sunken", borderwidth=1)
         self.control_panel.place(relx=1.0, y=40, anchor="ne", relheight=0.85)
         
         self.update_controls("Media Discovery")
@@ -114,7 +122,32 @@ class PhotoToolsApp(TkinterDnD.Tk):
             self.log_console(f"[{tab_name}] Invalid drop: Not a folder - {dropped_path}")
             
     def run_upload(self):
-        self.log_console("Clean Upload started.")
+        source_folder = self.dropped_paths.get("Clean Upload")
+        if not source_folder:
+            self.log_console("[Clean Upload] No folder dropped.")
+            return
+        
+        self.log_console("Select destination folder for cleaned upload...")
+        dest = filedialog.askdirectory(title="Select destination folder")
+        if not dest:
+            self.log_console("[Clean Upload] No destination selected.")
+            return
+        
+        self.log_console(f"[Clean Upload] Copying from: {source_folder}")
+        self.log_console(f"[Clean Upload] To: {dest}")
+        
+        threading.Thread(
+            target=self.run_upload_thread,
+            args=(source_folder, dest),
+            daemon=True
+        ).start()
+        
+    def run_upload_thread(self, source_folder, target_folder):
+        try:
+            clean_upload.run_clean_upload(source_folder, target_folder, log=self.log_console)
+            self.log_console("[Clean Upload] Upload complete.")
+        except Exception as e:
+            self.log_console(f"[Clean Upload] Error: {str(e)}")
         
     def scan_media(self):
         folder = self.dropped_paths.get("Media Discovery", [None])[-1]
@@ -161,7 +194,7 @@ class PhotoToolsApp(TkinterDnD.Tk):
     
     def organize_media_thread(self, json_path, base_path, folder_name):    
         try:
-            media_dict = cross_pic_organizer.load_media_json(json_path)
+            media_dict = cross_pic_organizer.load_media_json(json_path, log=self.log_console)
             if not media_dict:
                 self.log_console("[Media Organizer] Failed to load or empty JSON.")
                 return
@@ -173,7 +206,27 @@ class PhotoToolsApp(TkinterDnD.Tk):
             self.log_console(f"[Media Organizer] Error: {str(e)}")
                     
     def load_scanned(self):
-        self.log_console("Loading scanned albums...")
+        folder = self.dropped_paths.get("Scanned Albums", [None])[-1]
+        if not folder:
+            self.log_console("[Scanned Albums] No scanned folders dropped.")
+            return
+        self.log_console(f"[Scanned Albums] Organizing: {folder}")
+        
+        # Optional: prompt for album name and tags
+        album_name = askstring("Default Album", "Enter default album name:")
+        if not album_name:
+            self.log_console("[Scanned Albums] No album name provided.")
+            return
+
+        tags_input = askstring("Tags", "Enter tags (comma separated):")
+        tags = [t.strip() for t in tags_input.split(",") if t.strip()] if tags_input else []
+        
+        threading.Thread(
+            target=scanned_album.scan_scanned_photos,
+            args=(folder,),
+            kwargs={"batch_mode": True, "default_album": album_name, "default_tags": tags, "log": self.log_console},
+            daemon=True
+        ).start()
         
     def move_albums(self):
         self.log_console("Moving scanned albums...")        

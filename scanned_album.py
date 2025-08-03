@@ -8,8 +8,8 @@ from PIL import Image
 
 # Configurable settings
 scanned_extensions = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
-low_quality_min_width = 100
-low_quality_min_height = 100
+low_quality_min_width = 400
+low_quality_min_height = 400
 
 # Output folders
 duplicates_folder = "duplicates"
@@ -71,14 +71,40 @@ def organize_scanned_photos(source_folder):
             file_hash = hash_file(file)
             
             if file_hash in hashed_files:
+                # Already seen - mark as duplicate
                 dest = os.path.join(output_base, duplicates_folder, file.name)
+                counter = 1
+                name_no_ext, ext = os.path.splitext(file.name)
+                while os.path.exists(dest):
+                    dest = os.path.join(output_base, duplicates_folder, f"{name_no_ext}_{counter}{ext}")
+                    counter += 1
                 try:
                     shutil.copy2(file, dest)
                     print(f"[DUPLICATE] {file} -> {dest}")
                 except Exception as e:
                     print(f"[ERROR] Failed to copy duplicate: {file} ({e})")
+                hashed_files.add(file_hash)
+                continue
+            is_review = is_low_quality(file)
+            if is_review:
+                poor_images_folder = os.path.join(output_base, "Poor_Images")
+                os.makedirs(poor_images_folder, exist_ok=True)
+                
+                poor_dest = os.path.join(poor_images_folder, file.name)
+                counter = 1
+                name_no_ext, ext = os.path.splitext(file.name)
+                while os.path.exists(poor_dest):
+                    poor_dest = os.path.join(poor_images_folder, f"{name_no_ext}_{counter}{ext}")
+                    counter += 1
+                try:
+                    shutil.move(file, poor_dest)
+                    print(f"[POOR QUALITY MOVED] {file} -> {poor_dest}")
+                except Exception as e:
+                    print(f"[ERROR] Failed to move poor quality image: {file} ({e})")
+                hashed_files.add(file_hash)
                 continue
             
+            # Batch or interactive input
             if batch_mode:
                 album = default_album
                 tags = default_tags
@@ -89,12 +115,16 @@ def organize_scanned_photos(source_folder):
                     continue
                 tags_input = input(f"Enter tags (comma separated): ").strip()
                 tags = [t.strip() for t in tags_input.split(",") if t.strip()]
-            
+                
             album_path = os.path.join(output_base, album)
-            if not os.path.exists(album_path):
-                os.makedirs(album_path)
+            os.makedirs(album_path, exist_ok=True)
             
             dest = os.path.join(album_path, file.name)
+            counter = 1
+            name_no_ext, ext = os.path.splitext(file.name)
+            while os.path.exists(dest):
+                dest = os.path.join(album_path, f"{name_no_ext}_{counter}{ext}")
+                counter += 1
             try:
                 shutil.copy2(file, dest)
                 print(f"[MOVED] {file} -> {dest}")
@@ -102,7 +132,6 @@ def organize_scanned_photos(source_folder):
                 print(f"[ERROR] Failed to copy image: {file} ({e})")
                 continue
             
-            # Recovery logging
             save_recovery_log({
                 "original": str(file),
                 "destination": dest,
@@ -110,39 +139,114 @@ def organize_scanned_photos(source_folder):
                 "album": album
             })
             
-            # Metadata tracking
             if album not in album_metadata:
                 album_metadata[album] = {
                     "created": datetime.now().isoformat(),
                     "photos": [],
                     "tags": tags,
                 }
-            
+                
             album_metadata[album]["photos"].append({
                 "filename": file.name,
                 "hash": file_hash,
                 "tags": tags,
-                "review": is_low_quality(file),
+                "review": False,
             })
             
             hashed_files.add(file_hash)
-            
-            # Handle review flag
-            if album_metadata[album]["photos"][-1]["review"]:
-                review_dest = os.path.join(output_base, review_folder, file.name)
-                try:
-                    shutil.copy2(file, review_dest)
-                    print(f"[REVIEW] Low-quality image copied to: {review_dest}")
-                except Exception as e:
-                    print(f"[ERROR] Failed to copy to review folder: {file} ({e})")
-                
-    # Save metadata
-    for album, data in album_metadata.items():
-        metadata_path = os.path.join(output_base, f"{album}.json")
-        with open(metadata_path, "w") as f:
-            json.dump(data, f, indent=2)
-        print(f"[METADATA] Saved metadata for album: {album}")
 
+def scan_scanned_photos(source_folder, batch_mode=False, default_album=None, default_tags=None, log=print):
+    hashed_files = set()
+    album_metadata = {}
+    
+    output_base = os.path.join(source_folder, albums_folder)
+    os.makedirs(output_base, exist_ok=True)
+    os.makedirs(os.path.join(output_base, duplicates_folder), exist_ok=True)
+    
+    for file in Path(source_folder).rglob("*"):
+        if file.is_file() and file.suffix.lower() in scanned_extensions:
+            file_hash = hash_file(file)
+            
+            if file_hash in hashed_files:
+                dest = os.path.join(output_base, duplicates_folder, file.name)
+                counter = 1
+                name_no_ext, ext = os.path.splitext(file.name)
+                while os.path.exists(dest):
+                    dest = os.path.join(output_base, duplicates_folder, f"{name_no_ext}_{counter}{ext}")
+                    counter += 1
+                try:
+                    shutil.copy2(file, dest)
+                    log(f"[DUPLICATE] {file} -> {dest}")
+                except Exception as e:
+                    log(f"[ERROR] Failed to copy duplicate: {file} ({e})")
+                hashed_files.add(file_hash)
+                continue
+        
+        is_review = is_low_quality(file)
+        if is_review:
+            poor_images_folder = os.path.join(output_base, "Poor_Images")
+            os.makedirs(poor_images_folder, exist_ok=True)
+            poor_dest = os.path.join(poor_images_folder, file.name)
+            counter = 1
+            name_no_ext, ext = os.path.splitext(file.name)
+            while os.path.exist(poor_dest):
+                poor_dest = os.path.join(poor_images_folder, f"{name_no_ext}_{counter}{ext}")
+                counter += 1
+            try:
+                shutil.move(file, poor_dest)
+                log(f"[POOR QUALITY MOVED] {file} -> {poor_dest}")
+            except Exception as e:
+                log(f"[ERROR] Failed to move poor quality image: {file} ({e})")
+            hashed_files.add(file_hash)
+            continue
+        
+        # Batch only 
+        if batch_mode:
+            album = default_album or "Unosorted"
+            tags = default_tags or []
+        else:
+            log(f"[SKIPPED] {file} - interactive mode not supported in GUI.")
+            continue
+        
+        album_path = os.path.join(output_base, album)
+        os.makedirs(album_path, exist_ok=True)
+        
+        dest = os.path.join(album_path, file.name)
+        counter = 1
+        name_no_ext, ext = os.path.splitext(file.name)
+        while os.path.exists(dest):
+            dest = os.path.join(album_path, f"{name_no_ext}_{counter}{ext}")
+            counter += 1
+        try:
+            shutil.copy2(file, dest)
+            log(f"[MOVED] {file} -> {dest}")
+        except Exception as e:
+            log(f"[ERROR] Failed to copy imagage: {file} ({e})")
+            continue
+        
+        save_recovery_log({
+            "original": str(file),
+            "destination": dest,
+            "timestamp": datetime.now().isoformat(),
+            "album": album
+        })
+        
+        if album not in album_metadata:
+            album_metadata[album] = {
+                "created": datetime.now().isoformat(),
+                "photos": [],
+                "tags": tags,
+            }
+            
+        album_metadata[album]["photos"].append({
+            "filename": file.name,
+            "hash": file_hash,
+            "tags": tags,
+            "review": False,
+        })
+        
+        hashed_files.add(file_hash)
+            
 def main():
     print("=== Scanned Photo Organizer ===")
     source = input("Enter path to scanned photo folder: ").strip()
@@ -150,6 +254,28 @@ def main():
         print("Invalid path.")
         return
     organize_scanned_photos(source)
+    
+def move_albums(source_folder, dest_folder, log=print):
+    source_albums_path = os.path.join(source_folder, albums_folder)
+    if not os.path.exist(source_albums_path):
+        log(f"[Move Albbums] No '{albums_folder}' folder found in {source_folder}")
+        return
+    
+    for item in os.listdir(source_albums_path):
+        item_path = os.path.join(source_albums_path, item)
+        if os.path.isdir(item_path) and item not in [duplicates_folder, review_folder, "Poor_Images"]:
+            dest_path = os.path.join(dest_folder, item)
+            counter = 1
+            base_name = item
+            while os.path.exists(dest_path):
+                dest_path = os.path.join(dest_folder, f"{base_name}_{counter}")
+                counter += 1
+            try:
+                shutil.move(item_path, dest_path)
+                log(f"[Moved] {item_path} -> {dest_path}")
+            except Exception as e:
+                log(f"[ERROR] Failed to move album '{item}': {str(e)}")
+                
     
 if __name__ == "__main__":
     main()

@@ -21,38 +21,38 @@ def is_junk(filepath):
     lower_path = filepath.lower()
     return any(keyword in lower_path for keyword in junk_keywords)
 
-def file_hash(path):
+def file_hash(path, log=print):
     hasher = hashlib.md5()
     try:
         with open(path, "rb") as f:
             while chunk := f.read(8192):
                 hasher.update(chunk)
     except Exception as e:
-        print(f"[HASH ERROR] Could not hash {path}: {e}")
+        log(f"[HASH ERROR] Could not hash {path}: {e}")
         return None
     return hasher.hexdigest()
 
-def get_file_date(path):
+def get_file_date(path, log=print):
     try:
         ts = os.path.getmtime(path)
         return datetime.fromtimestamp(ts)
     except Exception as e:
-        print(f"[DATE ERROR] Could not get date for {path}: {e}")
+        log(f"[DATE ERROR] Could not get date for {path}: {e}")
     return None
 
-def make_folder(path):
+def make_folder(path, log=print):
     try:
         os.makedirs(path, exist_ok=True)
     except Exception as e:
-        print(f"[FOLDER ERROR] Could not create folder {path}")
+        log(f"[FOLDER ERROR] Could not create folder {path}")
     return path
 
-def get_image_resolution(path):
+def get_image_resolution(path, log=print):
     try:
         with Image.open(path) as img:
             return img.size # (width, height)
     except Exception as e:
-        print(f"[RESOLUTION ERROR] Could not read resolution for {path}: {e}")
+        log(f"[RESOLUTION ERROR] Could not read resolution for {path}: {e}")
         return (0, 0)
 
 
@@ -69,12 +69,14 @@ def organize_media(media_dict, base_path, folder_name, log=print):
     resolution_map = {} # filename_no_ext -> (resolution, full_path)
     
     start_time = time.time()
+    duplicates_list = []
     
     for file_path in media_dict.get("images", []):
         processed_total += 1
         if not os.path.exists(file_path):
             log(f"[MISSING] File does not exist: {file_path}")
             continue
+        log(f"[IMAGE] Processing: {os.path.basename(file_path)}")
         
         filename = os.path.basename(file_path)
         name_no_ext, ext = os.path.splitext(filename)
@@ -160,6 +162,8 @@ def organize_media(media_dict, base_path, folder_name, log=print):
         if not h:
             continue
         
+        log(f"[VIDEO] Processing: {os.path.basename(file_path)}")
+        
         filename = os.path.basename(file_path)
         
         if h in copied_hashes:
@@ -202,12 +206,12 @@ def organize_media(media_dict, base_path, folder_name, log=print):
     log(f"Duplicates moved: {dup_count}")
     log(f"Junk moved: {junk_count}")
     
-def load_media_json(json_path):
+def load_media_json(json_path, log=print):
     try:
         with open(json_path, "r") as f:
             return json.load(f)
     except Exception as e:
-        print(f"[JSON ERROR] Could not load JSON file {json_path}: {e}.")
+        log(f"[JSON ERROR] Could not load JSON file {json_path}: {e}.")
         return {}
 
 #def run_with_args(json_path, base_path, folder_name, log=print):
@@ -241,7 +245,7 @@ def main():
         print(f"Invalid base path: {base_path}")
         return
     
-    folder_name = input("Enter name ffor the new organized folder (e.g., 'Family_Album'): ").strip()
+    folder_name = input("Enter name for the new organized folder (e.g., 'Family_Album'): ").strip()
     if not folder_name:
         print("Folder name cannot be empty.")
         return
