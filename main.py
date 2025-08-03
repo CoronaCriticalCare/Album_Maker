@@ -8,6 +8,7 @@ import sys
 import io
 import os
 import json
+import time
 
 # Import scripts
 import photo_scan
@@ -86,6 +87,20 @@ class PhotoToolsApp(TkinterDnD.Tk):
         self.console = tk.Text(self, height=25, bg="black", fg="lime", insertbackground="white")
         self.console.pack(fill="x", side="bottom")
         self.log_console("[Console Ready]\n")
+        
+        # --- Progress Bar ---
+        self.progress_frame = tk.Frame(self, bg="lightgray")
+        self.progress_frame.pack(fill="x", pady=(2, 5))
+        
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(
+            self.progress_frame, variable=self.progress_var, maximum=100
+        )
+        self.progress_bar.pack(fill="x", padx=10)
+        
+        self.progress_label = tk.Label(self.progress_frame, text="0%", bg="lightgray")
+        self.progress_label.pack(pady=5)
+        
         
     def update_controls(self, tab_name):
         for widget in self.control_panel.winfo_children():
@@ -194,13 +209,29 @@ class PhotoToolsApp(TkinterDnD.Tk):
     
     def organize_media_thread(self, json_path, base_path, folder_name):    
         try:
+            start_time = time.time()
+            
             media_dict = cross_pic_organizer.load_media_json(json_path, log=self.log_console)
             if not media_dict:
                 self.log_console("[Media Organizer] Failed to load or empty JSON.")
                 return
             
-            cross_pic_organizer.organize_media(media_dict, base_path, folder_name, log=self.log_console)
+            cross_pic_organizer.organize_media(
+                media_dict, 
+                base_path, 
+                folder_name, 
+                log=self.log_console,
+                progress_callback=self.update_progress
+            )
+            self.update_progress(100)
             self.log_console(f"[Media Organizer] Media organized into: {os.path.join(base_path, folder_name)}")
+            
+            # Calculate elapsed time
+            elapsed = time.time() - start_time
+            h = int(elapsed // 3600)
+            m = int((elapsed % 3600) // 60)
+            s = int(elapsed % 60)
+            self.log_console(f"[Media Organizer] Total runtime: {h:02}:{m:02}:{s:02}")
             
         except Exception as e:
             self.log_console(f"[Media Organizer] Error: {str(e)}")
@@ -235,6 +266,14 @@ class PhotoToolsApp(TkinterDnD.Tk):
         self.console.insert(tk.END, message + "\n")
         self.console.see(tk.END)
         
+    def update_progress(self, percent):
+        try:
+            self.progress_var.set(percent)
+            self.progress_label.config(text=f"{percent:.1f}%")
+            self.progress_frame.update_idletasks()
+        except Exception as e:
+            self.log_console(f"[Progress Error] {e}")        
+            
 if __name__ == "__main__":
     app = PhotoToolsApp()
     app.mainloop()

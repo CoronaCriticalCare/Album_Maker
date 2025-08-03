@@ -56,7 +56,7 @@ def get_image_resolution(path, log=print):
         return (0, 0)
 
 
-def organize_media(media_dict, base_path, folder_name, log=print):
+def organize_media(media_dict, base_path, folder_name, log=print, progress_callback=None):
     root = make_folder(os.path.join(base_path, folder_name))
     junk_folder = make_folder(os.path.join(root, "junk"))
     duplicates_folder = make_folder(os.path.join(root, "duplicates"))
@@ -71,12 +71,25 @@ def organize_media(media_dict, base_path, folder_name, log=print):
     start_time = time.time()
     duplicates_list = []
     
+    total_files = len(media_dict.get("images", [])) + len(media_dict.get("videos", []))
+    
     for file_path in media_dict.get("images", []):
         processed_total += 1
+        if progress_callback:
+            percent = (processed_total / total_files) * 100
+            progress_callback(percent)
+            
         if not os.path.exists(file_path):
             log(f"[MISSING] File does not exist: {file_path}")
             continue
         log(f"[IMAGE] Processing: {os.path.basename(file_path)}")
+        
+        # Show progress every 1000 processed files
+        if processed_total % 1000 == 0:
+            elapsed = time.time() - start_time
+            runtime_str = str(datetime.utcfromtimestamp(elapsed).strftime('%H:%M:%S'))
+            log(f"[PROGRESS] {processed_total} processed | {copied_count} copied | {dup_count} duplicates | {junk_count} junk | Runtime: {runtime_str}")
+            
         
         filename = os.path.basename(file_path)
         name_no_ext, ext = os.path.splitext(filename)
@@ -156,6 +169,11 @@ def organize_media(media_dict, base_path, folder_name, log=print):
     # Handle videos normally (no resolution check)
     for file_path in media_dict.get("videos", []):
         processed_total += 1
+        
+        if progress_callback and total_files:
+            percent = (processed_total / total_files) * 100
+            progress_callback(percent)
+            
         if not os.path.exists(file_path):
             continue
         h = file_hash(file_path)
@@ -163,6 +181,11 @@ def organize_media(media_dict, base_path, folder_name, log=print):
             continue
         
         log(f"[VIDEO] Processing: {os.path.basename(file_path)}")
+        
+        if processed_total % 1000 == 0:
+            elapsed = time.time() - start_time
+            runtime_str = str(datetime.utcfromtimestamp(elapsed).strftime("%H:%M:%S"))
+            log(f"[PROGRESS] {processed_total} processed | {copied_count} copied | {dup_count} duplicates | {junk_count} junk")
         
         filename = os.path.basename(file_path)
         
@@ -205,6 +228,10 @@ def organize_media(media_dict, base_path, folder_name, log=print):
     log(f"Copied: {copied_count}")
     log(f"Duplicates moved: {dup_count}")
     log(f"Junk moved: {junk_count}")
+    
+    elapsed = time.time() - start_time
+    runtime_str = str(datetime.utcfromtimestamp(elapsed).strftime('%H:%M:%S'))
+    log(f"[RUNTIME] Total time: {runtime_str}")
     
 def load_media_json(json_path, log=print):
     try:
