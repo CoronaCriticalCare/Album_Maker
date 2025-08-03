@@ -104,6 +104,7 @@ def organize_media(media_dict, base_path, folder_name, log=print, progress_callb
             try:
                 shutil.copy(file_path, dest)
                 junk_count += 1
+                log(f"[JUNKED] {file_path} -> {dest}")
             except Exception as e:
                 log(f"[JUNK COPY ERROR] {file_path} -> {e}")
             continue
@@ -115,11 +116,9 @@ def organize_media(media_dict, base_path, folder_name, log=print, progress_callb
             existing_res, existing_path = existing
             if resolution[0] * resolution[1] > existing_res[0] * existing_res[1]:
                 # Move previous (lower-res) to duplicates list
-                duplicates_list = duplicates_list if 'duplicates_list' in locals() else []
                 duplicates_list.append(existing_path)
                 resolution_map[name_no_ext] = (resolution, file_path)
             else:
-                duplicates_list = duplicates_list if 'duplicates_list' in locals() else []
                 duplicates_list.append(file_path)
         else:
             resolution_map[name_no_ext] = (resolution, file_path)
@@ -146,6 +145,7 @@ def organize_media(media_dict, base_path, folder_name, log=print, progress_callb
             shutil.copy2(file_path, dest)
             copied_hashes.add(h)
             copied_count += 1
+            log(f"[COPIED] {file_path} -> {dest}")
         except Exception as e:
             log(f"[COPY ERROR] {file_path} -> {e}")
     
@@ -163,6 +163,7 @@ def organize_media(media_dict, base_path, folder_name, log=print, progress_callb
         try:
             shutil.copy2(dup_path, dest)
             dup_count += 1
+            log(f"[DUPLICATE] {dup_path} -> {dest}")
         except Exception as e:
             log(f"[DUP COPY ERROR] {dup_path} -> {e}")
     
@@ -200,6 +201,7 @@ def organize_media(media_dict, base_path, folder_name, log=print, progress_callb
             try:
                 shutil.copy2(file_path, dest)
                 dup_count += 1
+                log(f"[DUPLICATE] {dup_path} -> {dest}")
             except Exception as e:
                 log(f"[DUP COPY ERROR] {file_path} -> {e}")
             continue
@@ -219,6 +221,7 @@ def organize_media(media_dict, base_path, folder_name, log=print, progress_callb
             shutil.copy2(file_path, dest)
             copied_hashes.add(h)
             copied_count += 1
+            log(f"[COPIED] {file_path} -> {dest}")
         except Exception as e:
             log(f"[COPY ERROR] {file_path} -> {e}")
     
