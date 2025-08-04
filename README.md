@@ -1,7 +1,7 @@
 # Media Tools Organizer
 
-A cross-platform Python GUI app for scanning, organizing, and cleaning photo/video folders.
-Built with 'tkinter', 'Pillow', and 'tkinterdnd2'.__builtins__
+A cross-platform Python GUI app for scanning, organizing, and cleaning photo/video folders.  
+Built with `tkinter`, `Pillow`, and `tkinterdnd2`.
 
 ---
 
@@ -19,21 +19,44 @@ Built with 'tkinter', 'Pillow', and 'tkinterdnd2'.__builtins__
 
 ## Requirements
 
-- Python 3.9 or newer recommended
-- 'tkinter' (usually bundled with Python)
-- System dependencies (Linux only): 'python3-tk'
+- Python 3.9 or newer recommended  
+- `tkinter` (usually bundled with Python)  
+- System dependencies (Linux only): `python3-tk`
+- `python-dateutil` for flexible date input
 
 ---
 
 ## Install Dependencies
 
-## Windows / macOS
+### Windows / macOS
 
 From the root project directory:
 
 ```bash
 pip install -r requirements.txt
+```
 
-## Ubuntu/Debian
+### Ubuntu / Debian
+
+```bash
 sudo apt update && sudo apt install python3-tk
+pip install -r requirements.txt
+```
 
+---
+
+## How to Run
+
+```bash
+python main.py
+```
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+Built by Corona, S.

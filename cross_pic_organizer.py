@@ -6,15 +6,28 @@ import hashlib
 import time
 from PIL import Image
 
-image_extensions = (".jpg", ".jpeg", ".png", ".heic", ".bmp", ".gif")
-video_extensions = (".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm", ".3gp", ".mpeg")
+image_extensions = (
+    ".jpg", ".jpeg", ".png", ".heic", ".bmp", ".gif",
+    ".tif", ".tiff", ".heif", ".raw", ".arw", ".cr2",
+    ".nef", ".orf", ".sr2", ".dng", ".psd", ".jp2"               
+)
+video_extensions = (
+    ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm", ".3gp",
+    ".mpeg", ".mpg", ".m4v", ".mts", ".m2ts", ".ts", ".ogv", ".divx"
+)
 all_extensions = image_extensions + video_extensions
 
 junk_keywords = [
-    "icon", "thumbnail", "appicon", "template", "cache",
-    "xcode", "framework", "core", "bunde", "launchimage",
-    "previews", "placeholder", "launchscreen", "assets.car",
-    ".app", "appicons", "ios", "watchos", "macos"
+    "icon", "thumbnail", "thumb", "cache", "template", "placeholder",
+    "sample", "preview", "test", "dummy", "example", "appicon",
+    "launchimage", "launchscreen," "assets.car", ".app", "ios",
+    "macos", "watchos", "ipad", "iphone", "drawable", "mipmap",
+    "res_", "android", "ic_launcher", "build", "favicon",
+    "bootstrap", "fontawesome", "tailwind", "material", "svg"
+    "webmanifest", "xcode", "framework", "core", "debug",
+    "bunde", "build", "dist", "obj", "desktop.ini", "thumbs.db",
+    ".db_store", ".git", ".svn", "log", "crashreport", "sprite",
+    "sketch", "figma", "pdf", "doc", "ai", "eps", ".svg",
 ]
 
 def is_junk(filepath):

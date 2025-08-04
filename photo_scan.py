@@ -3,22 +3,36 @@ import json
 import time
 import datetime
 
-image_extensions = (".jpg", ".jpeg", ".png", ".heic", ".gif", ".bmp")
-video_extensions = (".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm", ".3gp", ".mpeg")
+image_extensions = (
+    ".jpg", ".jpeg", ".png", ".heic", ".bmp", ".gif",
+    ".tif", ".tiff", ".heif", ".raw", ".arw", ".cr2",
+    ".nef", ".orf", ".sr2", ".dng", ".psd", ".jp2"               
+)
+video_extensions = (
+    ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm", ".3gp",
+    ".mpeg", ".mpg", ".m4v", ".mts", ".m2ts", ".ts", ".ogv", ".divx"
+)
+
 output_json = "photo_folder.json"
 
 # Folders to skip during scanning
 skip_folders = [
     "TECHTOOLS", ".Applications", ".Trash", "com.apple", ".spotlight-V100", ".fseventsd",
     ".documentRevisions-V100", "$Recyle.Bin", "System Volume Information", "Windows",
-    "Program Files", "Program Files (x86)", "AppData", "Temp", "ProgramData"
+    "Program Files", "Program Files (x86)", "AppData", "Temp", "ProgramData", "_MACOSX",
+    ".cache", ".config", ".local", "Library", "node_modules", "venv", ".venv", ".git",
+    ".svn", ".hg", ".OneDriveTemp", "OneDrive - Personal", "Recycle.Bin", ".thumbnails",
+    "lost+found", "$WinREAgent"
 ]
 
 # Extensions considered "Junk"
 junk_extensions = (
     ".ds_store", ".tmp", ".log", ".ini", ".plist", ".db", ".thumbnails",
     ".lnk", ".exe", ".dll", ".sys", ".bak", ".swp", ".crdownload", ".part",
-    ".icloud", ".trashinfo", ".desktop.ini", ".thumbs.db"
+    ".icloud", ".trashinfo", ".desktop.ini", ".thumbs.db", ".msi", ".cab",
+    ".gx", ".xz", ".tar", ".zip", ".nfo", ".sfv", ".apk", ".obb", ".ipa",
+    ".torrent", ".aria2", ".idx", ".sub", ".srt", ".lock", ".bak", ".old",
+    ".db-journal", ".log1", ".log2"
 )
 
 def should_skip_dir(dir_path):

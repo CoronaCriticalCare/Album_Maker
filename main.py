@@ -124,9 +124,6 @@ class PhotoToolsApp(TkinterDnD.Tk):
     def on_tab_change(self, event):
         tab_name = event.widget.tab(event.widget.select(), "text")
         self.update_controls(tab_name)
-        
-    def load_json(self):
-        self.log_console("Load JSON clicked.")
     
     def handle_drop(self, event, tab_name):
         dropped_path = event.data.strip("{}")
@@ -135,6 +132,21 @@ class PhotoToolsApp(TkinterDnD.Tk):
             self.log_console(f"[{tab_name}] Folder dropped: {dropped_path}")
         else:
             self.log_console(f"[{tab_name}] Invalid drop: Not a folder - {dropped_path}")
+            
+    def log_console(self, message):
+        self.console.insert(tk.END, message + "\n")
+        self.console.see(tk.END)
+        
+    def update_progress(self, percent):
+        try:
+            self.progress_var.set(percent)
+            self.progress_label.config(text=f"{percent:.1f}%")
+            self.progress_frame.update_idletasks()
+        except Exception as e:
+            self.log_console(f"[Progress Error] {e}")    
+    
+    def load_json(self):
+        self.log_console("Load JSON clicked.")
             
     def run_upload(self):
         source_folder = self.dropped_paths.get("Clean Upload")
@@ -228,9 +240,7 @@ class PhotoToolsApp(TkinterDnD.Tk):
             
             # Calculate elapsed time
             elapsed = time.time() - start_time
-            h = int(elapsed // 3600)
-            m = int((elapsed % 3600) // 60)
-            s = int(elapsed % 60)
+            h, m, s = int(elapsed // 3600), int((elapsed % 3600) // 60), int(elapsed % 60)
             self.log_console(f"[Media Organizer] Total runtime: {h:02}:{m:02}:{s:02}")
             
         except Exception as e:
@@ -252,27 +262,32 @@ class PhotoToolsApp(TkinterDnD.Tk):
         tags_input = askstring("Tags", "Enter tags (comma separated):")
         tags = [t.strip() for t in tags_input.split(",") if t.strip()] if tags_input else []
         
+        date_start = askstring("Start Date", "Enter start date (e.g., 8-4-25 or Aug 4 2025):")
+        date_end = askstring("End Date", "Enter end date (e.g., 8-9-25 or Aug 9 2025):")
+        if not date_start or not date_end:
+            self.log_console("[Scanned Albums] Start and end dates are required.")
+            return
+        
+        self.log_console(f"[Scanned Albums] Filtering by date: {date_start} to {date_end}")
+        
         threading.Thread(
             target=scanned_album.scan_scanned_photos,
             args=(folder,),
-            kwargs={"batch_mode": True, "default_album": album_name, "default_tags": tags, "log": self.log_console},
+            kwargs={
+                "batch_mode": True,
+                "default_album": album_name,
+                "default_tags": tags,
+                "date_start": date_start,
+                "date_end": date_end,
+                "log": self.log_console
+            },
             daemon=True
         ).start()
         
     def move_albums(self):
         self.log_console("Moving scanned albums...")        
         
-    def log_console(self, message):
-        self.console.insert(tk.END, message + "\n")
-        self.console.see(tk.END)
         
-    def update_progress(self, percent):
-        try:
-            self.progress_var.set(percent)
-            self.progress_label.config(text=f"{percent:.1f}%")
-            self.progress_frame.update_idletasks()
-        except Exception as e:
-            self.log_console(f"[Progress Error] {e}")        
             
 if __name__ == "__main__":
     app = PhotoToolsApp()

@@ -5,6 +5,7 @@ import hashlib
 from datetime import datetime
 from pathlib import Path
 from PIL import Image
+from dateutil.parser import parse as parse_date # flexible date parsing
 
 # Configurable settings
 scanned_extensions = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
@@ -16,6 +17,7 @@ duplicates_folder = "duplicates"
 review_folder = "review"
 albums_folder = "Scanned_Albums"
 recovery_log = "recovery_log.json"
+scan_history_log = "scan_history.json"
 
 def hash_file(path):
     hasher = hashlib.md5()
@@ -43,6 +45,22 @@ def save_recovery_log(entry):
     log.append(entry)
     with open(recovery_log, "w") as f:
         json.dump(log, f, indent=2)
+        
+def save_scan_history(folder, date_start, date_end_):
+    entry = {
+        "folder": folder,
+        "start_date": date_start,
+        "end_date": date_end_,
+        "timestamp": datetime.now().isoformat()
+    }
+    history = []
+    if os.path.exist(scan_history_log):
+        with open(scan_history_log, "r") as f:
+            history = json.load(f)
+        history.append(entry)
+        with open(scan_history_log, "w") as f:
+            json.dump(history, f, indent=2)
+            
 
 def organize_scanned_photos(source_folder):
     hashed_files = set()
@@ -155,16 +173,33 @@ def organize_scanned_photos(source_folder):
             
             hashed_files.add(file_hash)
 
-def scan_scanned_photos(source_folder, batch_mode=False, default_album=None, default_tags=None, log=print):
+def scan_scanned_photos(source_folder, batch_mode=False, default_album=None, default_tags=None, date_start=None, date_end=None, log=print):
     hashed_files = set()
     album_metadata = {}
+    
+    try:
+        start_dt = parse_date(date_start)
+        end_dt = parse_date(date_end)
+    except Exception as e:
+        log(f"[ERROR] Invalid date format: {e}")
+        return
     
     output_base = os.path.join(source_folder, albums_folder)
     os.makedirs(output_base, exist_ok=True)
     os.makedirs(os.path.join(output_base, duplicates_folder), exist_ok=True)
     
+    save_scan_history(source_folder, date_start, date_end)
+    
     for file in Path(source_folder).rglob("*"):
         if file.is_file() and file.suffix.lower() in scanned_extensions:
+            try:
+                mod_time = datetime.fromtimestamp(file.stat().st_mtime)
+                if not (start_dt <= mod_time <= end_dt):
+                    continue # Skips files outside date range
+            except Exception as e:
+                log(f"[ERROR] Could not get mod time: {file} {e}")
+                continue
+            
             file_hash = hash_file(file)
             
             if file_hash in hashed_files:
