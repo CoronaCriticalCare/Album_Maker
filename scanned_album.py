@@ -4,6 +4,7 @@ import json
 import hashlib
 from datetime import datetime
 from pathlib import Path
+
 from PIL import Image
 from dateutil.parser import parse as parse_date # flexible date parsing
 
@@ -16,6 +17,8 @@ low_quality_min_height = 400
 duplicates_folder = "duplicates"
 review_folder = "review"
 albums_folder = "Scanned_Albums"
+
+# Logs
 recovery_log = "recovery_log.json"
 scan_history_log = "scan_history.json"
 
@@ -54,14 +57,13 @@ def save_scan_history(folder, date_start, date_end_):
         "timestamp": datetime.now().isoformat()
     }
     history = []
-    if os.path.exist(scan_history_log):
+    if os.path.exists(scan_history_log):
         with open(scan_history_log, "r") as f:
             history = json.load(f)
         history.append(entry)
         with open(scan_history_log, "w") as f:
             json.dump(history, f, indent=2)
             
-
 def organize_scanned_photos(source_folder):
     hashed_files = set()
     album_metadata = {}

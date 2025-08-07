@@ -1,11 +1,9 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog
 from tkinter.simpledialog import askstring
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from PIL import Image, ImageTk
 import threading
-import sys
-import io
 import os
 import json
 import time

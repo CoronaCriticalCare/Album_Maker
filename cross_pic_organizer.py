@@ -1,9 +1,10 @@
 import os
 import json
 import shutil
-from datetime import datetime
 import hashlib
 import time
+from datetime import datetime
+
 from PIL import Image
 
 image_extensions = (
@@ -70,6 +71,9 @@ def get_image_resolution(path, log=print):
 
 
 def organize_media(media_dict, base_path, folder_name, log=print, progress_callback=None):
+    if progress_callback:
+        progress_callback(0.0)
+        
     root = make_folder(os.path.join(base_path, folder_name))
     junk_folder = make_folder(os.path.join(root, "junk"))
     duplicates_folder = make_folder(os.path.join(root, "duplicates"))
@@ -256,24 +260,6 @@ def load_media_json(json_path, log=print):
     except Exception as e:
         log(f"[JSON ERROR] Could not load JSON file {json_path}: {e}.")
         return {}
-
-#def run_with_args(json_path, base_path, folder_name, log=print):
-    #log("=== Cross-Platform Photo & Video Organizer ===\n")
-    
-    #if not os.path.isfile(json_path):
-        #log(f"[ERROR] JSON file not found: {json_path}")
-        #return
-    
-    #if not os.path.isdir(base_path):
-        #log(f"[ERROR] Invalid base path: {base_path}")
-        #return
-    
-    #if not folder_name:
-        #log(f"[ERROR] Folder name cannot be empty.")
-        #return
-    
-    #media_dict = load_media_json(json_path)
-    #organize_media(media_dict, base_path, folder_name, log=log)
     
 def main():
     print("=== Cross-Platform Photo & Video Organizer ===\n")

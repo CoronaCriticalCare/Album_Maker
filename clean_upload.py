@@ -1,11 +1,14 @@
 import os
 import shutil
-from datetime import datetime
 from pathlib import Path
 
-# COnstants
+# Constants
 skip_folders = {"duplicates", "junk", "Poor Images"}
-supported_extensions = {".jpg", ".jpeg", ".png", ".heic", ".bmp", ".gif", ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".3pg"}
+supported_extensions = {
+    ".jpg", ".jpeg", ".png", ".heic", ".bmp", ".gif", ".tif", ".tiff", ".dng", 
+    ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".3pg", ".3pg",
+    ".mpeg", ".mpg", ".m4v", ".mts", ".m2ts", ".ts", ".ogv", ".divx"
+}
 
 def should_skip_folder(folder_name):
     return folder_name.lower() in (name.lower() for name in skip_folders)
@@ -15,7 +18,7 @@ def confirm_upload(folder_name):
     choice = input("Upload anyway? (y/N): ").strip().lower()
     return choice == "y"
 
-def copy_files(src_dir, dest_dir):
+def copy_files(src_dir, dest_dir, log=print):
     for root, dirs, files in os.walk(src_dir):
         relative_root = os.path.relpath(root, src_dir)
         folder_name = os.path.basename(root)
@@ -23,7 +26,7 @@ def copy_files(src_dir, dest_dir):
         # Skip flagged folders
         if should_skip_folder(folder_name):
             if not confirm_upload(folder_name):
-                print(f"[-] Skipping: {root}")
+                log(f"[-] Skipping: {root}")
                 dirs[:] = [] # Don't descend further
                 continue
         
@@ -39,22 +42,22 @@ def copy_files(src_dir, dest_dir):
                 if not os.path.exists(dest_file):
                     shutil.copy2(src_file, dest_file)
                 else:
-                    print(f"[!] File already exist in destination: {dest_file} (Skipping)")
+                    log(f"[!] File already exist in destination: {dest_file} (Skipping)")
                     
-def batch_clean_upload(source_folders, target_folder):
+def batch_clean_upload(source_folders, target_folder, log=print):
     target_path = Path(target_folder)
     os.makedirs(target_path, exist_ok=True)
     
     for src_folder in source_folders:
         src_path = Path(src_folder)
         if not src_path.exists():
-            print(f"[!] Source folder not found: {src_path}")
+            log(f"[!] Source folder not found: {src_path}")
             continue
         
-        print(f"[+] Copying from: {src_path}")
+        log(f"[+] Copying from: {src_path}")
         copy_files(src_path, target_path)
     
-    print("\nClean upload directory created at:", target_path)
+    log("\nClean upload directory created at:", target_path)
     
 if __name__ == "__main__":
     print("\n=== Clean Upload Tool ===")

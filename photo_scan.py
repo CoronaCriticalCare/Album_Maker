@@ -9,7 +9,7 @@ image_extensions = (
     ".nef", ".orf", ".sr2", ".dng", ".psd", ".jp2"               
 )
 video_extensions = (
-    ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm", ".3gp",
+    ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm", ".3pg",
     ".mpeg", ".mpg", ".m4v", ".mts", ".m2ts", ".ts", ".ogv", ".divx"
 )
 
@@ -26,14 +26,15 @@ skip_folders = [
 ]
 
 # Extensions considered "Junk"
-junk_extensions = (
+junk_extensions = list(set([
     ".ds_store", ".tmp", ".log", ".ini", ".plist", ".db", ".thumbnails",
     ".lnk", ".exe", ".dll", ".sys", ".bak", ".swp", ".crdownload", ".part",
     ".icloud", ".trashinfo", ".desktop.ini", ".thumbs.db", ".msi", ".cab",
     ".gx", ".xz", ".tar", ".zip", ".nfo", ".sfv", ".apk", ".obb", ".ipa",
-    ".torrent", ".aria2", ".idx", ".sub", ".srt", ".lock", ".bak", ".old",
+    ".torrent", ".aria2", ".idx", ".sub", ".srt", ".lock", ".old",
     ".db-journal", ".log1", ".log2"
-)
+]))
+junk_extensions_lower = tuple(ext.lower() for ext in junk_extensions)
 
 def should_skip_dir(dir_path):
     for skip in skip_folders:
@@ -92,13 +93,18 @@ def log_scan(path, images, videos, elapsed):
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "num_images": len(images),
         "num_videos": len(videos),
-        "time_seconds": round(elapsed, 2)
+        "time_seconds": round(elapsed, 2),
+        "image_extensions": list(sorted(set(image_extensions))),
+        "video_extensions": list(sorted(set(video_extensions)))
     }
     
     history_file = "scan_history.json"
     if os.path.exists(history_file):
         with open(history_file, "r") as f:
-            history = json.load(f)
+            try:
+                history = json.load(f)
+            except json.JSONDecodeError:
+                history = []                
     else:
         history = []
     
@@ -140,4 +146,4 @@ def run_photo_scan(scan_path, log):
 # Optional CLI fallback
 if __name__ == "__main__":
     folder = input("Enter path to scan: ").strip()
-    run_photo_scan(folder)
+    run_photo_scan(folder, log=print)
