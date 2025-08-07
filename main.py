@@ -180,7 +180,16 @@ class PhotoToolsApp(TkinterDnD.Tk):
             self.log_console("No folder dropped for Media Discovery.")
             return
         self.log_console(f"Scanning media in: {folder}")
-        photo_scan.run_photo_scan(folder, log=self.log_console)
+        
+        threading.Thread(
+            target=photo_scan.run_photo_scan,
+            args=(folder,),
+            kwargs={
+                "log": self.log_console,
+                "progress_callback": self.update_progress
+            },
+            daemon=True
+        ).start()
     
     def organize_media(self):
         self.log_console("[Media Organizer] Starting input collection...")

@@ -9,7 +9,7 @@ image_extensions = (
     ".nef", ".orf", ".sr2", ".dng", ".psd", ".jp2"               
 )
 video_extensions = (
-    ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm", ".3pg",
+    ".mp4", ".mov", ".avi", ".mkv", ".wmv", ".flv", ".webm", ".3gp",
     ".mpeg", ".mpg", ".m4v", ".mts", ".m2ts", ".ts", ".ogv", ".divx"
 )
 
@@ -43,11 +43,12 @@ def should_skip_dir(dir_path):
     return False
 
 def is_junk_file(file_name):
-    return file_name.lower().endswith(junk_extensions)
+    return file_name.lower().endswith(junk_extensions_lower)
 
-def scan_media(root_path):
+def scan_media(root_path, log=print, progress_callback=None):
     found_images = []
     found_videos = []
+    all_files = []
     
     for root, dirs, files in os.walk(root_path):
         # Skip directories containing any of the keywords
@@ -55,17 +56,31 @@ def scan_media(root_path):
             print(f"Skipping Folder: {root}")
             dirs[:] = [] 
             continue
-        
         for file in files:
-            if is_junk_file(file):
-                continue # skip junk files
+            all_files.append((root, file))
+    
+    total = len(all_files)
+    processed = 0
+        
+    for root, file in all_files:
+        processed += 1
+        if is_junk_file(file):
+            continue # skip junk files
             
-            full_path = os.path.join(root, file)
-            lower_file = file.lower()
-            if lower_file.endswith(image_extensions):
-                found_images.append(full_path)
-            elif lower_file.endswith(video_extensions):
-                found_videos.append(full_path)
+        full_path = os.path.join(root, file)
+        lower_file = file.lower()
+        if lower_file.endswith(image_extensions):
+            found_images.append(full_path)
+        elif lower_file.endswith(video_extensions):
+            found_videos.append(full_path)
+        
+        # Update progress
+        if processed % 1000 == 0:
+            log(f"[SCAN] Processed {processed}/{total} files...")
+        
+        if progress_callback:
+            percent = (processed / total) * 100
+            progress_callback(percent)
     
     return found_images, found_videos
 
@@ -113,7 +128,7 @@ def log_scan(path, images, videos, elapsed):
     with open(history_file, "w") as f:
         json.dump(history, f, indent=2)
 
-def run_photo_scan(scan_path, log):
+def run_photo_scan(scan_path, log=print, progress_callback=None):
     if not os.path.isdir(scan_path):
         log("Invalid directory path. Please try again.")
         return
@@ -121,7 +136,7 @@ def run_photo_scan(scan_path, log):
     start_time = time.time()
     log(f"Scanning path: {scan_path} ...")
     
-    found_images, found_videos = scan_media(scan_path)
+    found_images, found_videos = scan_media(scan_path, log=log, progress_callback=progress_callback)
 
     elapsed = time.time() - start_time
     h, rem = divmod(int(elapsed), 3600)
